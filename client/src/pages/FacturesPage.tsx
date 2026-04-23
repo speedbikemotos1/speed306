@@ -944,7 +944,7 @@ export default function FacturesPage() {
 
   const handleRowClick = (fac: UnifiedFacture) => {
     if (fac.kind === "old") setSelectedFac(fac);
-    else setDetailV2Id(fac.id);
+    else setPrintV2({ id: fac.id, factureNumber: fac.factureNumber });
   };
 
   const handlePrint = (fac: UnifiedFacture) => {

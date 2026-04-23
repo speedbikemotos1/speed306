@@ -3,16 +3,18 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertSaleSchema, PAYMENT_MONTHS, CARTE_GRISE_STATUS } from "@shared/schema";
 import { useCreateSale } from "@/hooks/use-sales";
+import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Calendar } from "lucide-react";
+import { Loader2, Plus, Zap } from "lucide-react";
 import { z } from "zod";
 import { useClients } from "@/hooks/use-clients";
 import { useLocation } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
 
 const formSchema = insertSaleSchema.extend({
   totalToPay: z.coerce.number(),
@@ -22,6 +24,26 @@ const formSchema = insertSaleSchema.extend({
   divisionType: z.enum(["decimal", "rounded"]).default("rounded"),
 });
 
+type LivraisonSummary = {
+  id: number;
+  bonNumber: string;
+  date: string;
+  clientName: string;
+  factureNumber: string;
+  status: string;
+};
+
+type LivraisonDetail = LivraisonSummary & {
+  idClient: string;
+  lines: {
+    id: number;
+    designation: string;
+    serialNumber: string;
+    montantTtc: number;
+    ref: string;
+  }[];
+};
+
 export function CreateSaleDialog() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
@@ -29,12 +51,21 @@ export function CreateSaleDialog() {
   const { data: clients = [] } = useClients();
   const [clientSelectValue, setClientSelectValue] = useState<string>("");
   const [, setLocation] = useLocation();
-  
+  const [autofillLoading, setAutofillLoading] = useState(false);
+
+  const { data: livraisons = [] } = useQuery<LivraisonSummary[]>({
+    queryKey: ["/api/livraisons"],
+    select: (data: any[]) =>
+      data
+        .filter((l) => l.status === "validated" && l.factureNumber)
+        .sort((a, b) => b.bonNumber.localeCompare(a.bonNumber)),
+  });
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       invoiceNumber: "",
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split("T")[0],
       designation: "",
       clientType: "B2C",
       clientName: "",
@@ -49,7 +80,7 @@ export function CreateSaleDialog() {
       startMonth: PAYMENT_MONTHS[0],
       paymentDay: 1,
       divisionType: "rounded",
-    }
+    },
   });
 
   const totalToPay = form.watch("totalToPay");
@@ -60,45 +91,62 @@ export function CreateSaleDialog() {
   const divisionType = form.watch("divisionType");
   const clientType = form.watch("clientType");
 
+  const handleAutofill = async (livraisonId: string) => {
+    if (!livraisonId) return;
+    setAutofillLoading(true);
+    try {
+      const res = await apiRequest("GET", `/api/livraisons/${livraisonId}`);
+      const liv: LivraisonDetail = await res.json();
+      const firstLine = liv.lines?.[0];
+
+      form.setValue("invoiceNumber", liv.factureNumber || "");
+      form.setValue("date", liv.date || "");
+      form.setValue("clientName", liv.clientName || "");
+      if (firstLine) {
+        form.setValue("designation", firstLine.designation || "");
+        form.setValue("chassisNumber", firstLine.serialNumber || "");
+        if (firstLine.montantTtc) {
+          form.setValue("totalToPay", Math.round(firstLine.montantTtc));
+        }
+      }
+      setClientSelectValue("");
+      toast({ title: "Données importées", description: `BL ${liv.bonNumber} → Facture ${liv.factureNumber}` });
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de charger le BL.", variant: "destructive" });
+    } finally {
+      setAutofillLoading(false);
+    }
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       const { paymentMonths, startMonth, divisionType, ...saleData } = values;
       const payments: Record<string, { amount: number; isPaid: boolean }> = {};
-      
+
       if (paymentMonths > 0 && startMonth && credit > 0) {
         const startIndex = PAYMENT_MONTHS.indexOf(startMonth as any);
-        
+
         if (divisionType === "decimal") {
-          // Decimal division: divide evenly with decimals
           const monthlyAmount = credit / paymentMonths;
           for (let i = 0; i < paymentMonths; i++) {
             const monthIndex = startIndex + i;
             if (monthIndex < PAYMENT_MONTHS.length) {
-              payments[PAYMENT_MONTHS[monthIndex]] = {
-                amount: monthlyAmount,
-                isPaid: false
-              };
+              payments[PAYMENT_MONTHS[monthIndex]] = { amount: monthlyAmount, isPaid: false };
             }
           }
         } else {
-          // Rounded division: round down and distribute remainder to first payments (smaller numbers first)
           const monthlyAmount = Math.floor(credit / paymentMonths);
           const remainder = credit % paymentMonths;
-          
           for (let i = 0; i < paymentMonths; i++) {
             const monthIndex = startIndex + i;
             if (monthIndex < PAYMENT_MONTHS.length) {
-              // Distribute remainder to first payments
               const extra = i < remainder ? 1 : 0;
-              payments[PAYMENT_MONTHS[monthIndex]] = {
-                amount: monthlyAmount + extra,
-                isPaid: false
-              };
+              payments[PAYMENT_MONTHS[monthIndex]] = { amount: monthlyAmount + extra, isPaid: false };
             }
           }
         }
       }
-      
+
       await createSale.mutateAsync({ ...saleData, payments });
       toast({ title: "Succès", description: "La vente a été enregistrée avec succès." });
       setOpen(false);
@@ -121,42 +169,65 @@ export function CreateSaleDialog() {
           <DialogTitle className="text-2xl font-bold font-display">Nouvelle Vente</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
+        {/* ─── Auto-fill from validated BL ─── */}
+        {livraisons.length > 0 && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 flex items-center gap-3">
+            <Zap className="w-4 h-4 text-emerald-600 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-emerald-800 mb-1">Remplir depuis un BL validé</p>
+              <Select onValueChange={handleAutofill} disabled={autofillLoading}>
+                <SelectTrigger className="h-8 text-xs bg-white border-emerald-200" data-testid="select-autofill-bl">
+                  <SelectValue placeholder="Sélectionner un bon de livraison validé..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {livraisons.map((l) => (
+                    <SelectItem key={l.id} value={l.id.toString()}>
+                      <span className="font-mono font-bold text-indigo-700">{l.bonNumber}</span>
+                      <span className="mx-1.5 text-muted-foreground">·</span>
+                      <span>{l.clientName}</span>
+                      <span className="mx-1.5 text-muted-foreground">·</span>
+                      <span className="text-emerald-700">F/{l.factureNumber}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {autofillLoading && <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />}
+          </div>
+        )}
+
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>N° Facture</Label>
-              <Input {...form.register("invoiceNumber")} placeholder="Ex: F2025-001" />
+              <Input {...form.register("invoiceNumber")} placeholder="Ex: F2025-001" data-testid="input-invoice-number" />
             </div>
 
             <div className="space-y-2">
               <Label>Date</Label>
-              <div className="relative">
-                <Input 
-                  type="date"
-                  {...form.register("date")} 
-                  className="block w-full"
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    form.setValue("date", value);
-                  }}
-                />
-              </div>
+              <Input
+                type="date"
+                {...form.register("date")}
+                className="block w-full"
+                data-testid="input-sale-date"
+              />
             </div>
 
             <div className="space-y-2 md:col-span-2">
               <Label>Désignation</Label>
-              <Input {...form.register("designation")} />
+              <Input {...form.register("designation")} data-testid="input-designation" />
             </div>
 
             <div className="space-y-2">
               <Label>Type Client</Label>
-              <Select onValueChange={(val) => {
-                form.setValue("clientType", val);
-                if (val !== "Convention") {
-                  form.setValue("conventionName", "");
-                }
-              }} defaultValue="B2C">
-                <SelectTrigger>
+              <Select
+                onValueChange={(val) => {
+                  form.setValue("clientType", val);
+                  if (val !== "Convention") form.setValue("conventionName", "");
+                }}
+                defaultValue="B2C"
+              >
+                <SelectTrigger data-testid="select-client-type">
                   <SelectValue placeholder="Choisir..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -179,7 +250,7 @@ export function CreateSaleDialog() {
                       form.setValue("clientName", client ? client.nomPrenom : "");
                     }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger data-testid="select-client">
                       <SelectValue placeholder="Choisir un client existant" />
                     </SelectTrigger>
                     <SelectContent>
@@ -197,10 +268,8 @@ export function CreateSaleDialog() {
                   variant="outline"
                   size="icon"
                   className="shrink-0"
-                  onClick={() => {
-                    setOpen(false);
-                    setLocation("/gestion/clients");
-                  }}
+                  onClick={() => { setOpen(false); setLocation("/gestion/clients"); }}
+                  data-testid="btn-go-clients"
                 >
                   <Plus className="w-4 h-4" />
                 </Button>
@@ -209,34 +278,32 @@ export function CreateSaleDialog() {
                 className="mt-2"
                 placeholder="Ou saisir un nouveau client"
                 {...form.register("clientName")}
-                onChange={(e) => {
-                  form.setValue("clientName", e.target.value);
-                  setClientSelectValue("");
-                }}
+                onChange={(e) => { form.setValue("clientName", e.target.value); setClientSelectValue(""); }}
+                data-testid="input-client-name"
               />
             </div>
 
             {clientType === "Convention" && (
               <div className="space-y-2">
                 <Label>Nom de la Convention</Label>
-                <Input {...form.register("conventionName")} placeholder="Ex: convention steg" />
+                <Input {...form.register("conventionName")} placeholder="Ex: convention steg" data-testid="input-convention-name" />
               </div>
             )}
 
             <div className="space-y-2">
               <Label>N° Châssis</Label>
-              <Input {...form.register("chassisNumber")} />
+              <Input {...form.register("chassisNumber")} data-testid="input-chassis-number" />
             </div>
 
             <div className="space-y-2">
               <Label>Immatriculation</Label>
-              <Input {...form.register("registrationNumber")} />
+              <Input {...form.register("registrationNumber")} data-testid="input-registration-number" />
             </div>
 
             <div className="space-y-2">
               <Label>Carte Grise</Label>
               <Select onValueChange={(val) => form.setValue("grayCardStatus", val)} defaultValue="A Déposer">
-                <SelectTrigger>
+                <SelectTrigger data-testid="select-gray-card">
                   <SelectValue placeholder="Statut..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -249,27 +316,27 @@ export function CreateSaleDialog() {
 
             <div className="space-y-2">
               <Label>Total à Payer (TND)</Label>
-              <Input type="number" step="0.01" {...form.register("totalToPay")} />
+              <Input type="number" step="0.01" {...form.register("totalToPay")} data-testid="input-total-to-pay" />
             </div>
 
             <div className="space-y-2">
               <Label>Avance (TND)</Label>
-              <Input type="number" step="0.01" {...form.register("advance")} />
+              <Input type="number" step="0.01" {...form.register("advance")} data-testid="input-advance" />
             </div>
 
             <div className="space-y-2">
               <Label className="text-purple-600 font-bold">Crédit (Reste)</Label>
-              <Input value={credit.toLocaleString('fr-FR')} disabled className="bg-purple-50 font-bold text-purple-700" />
+              <Input value={credit.toLocaleString("fr-FR")} disabled className="bg-purple-50 font-bold text-purple-700" />
             </div>
 
             <div className="space-y-2">
               <Label>Nombre de mensualités</Label>
               <Select onValueChange={(val) => form.setValue("paymentMonths", parseInt(val))} defaultValue="0">
-                <SelectTrigger>
+                <SelectTrigger data-testid="select-payment-months">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24].map(n => (
+                  {[0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24].map((n) => (
                     <SelectItem key={n} value={n.toString()}>{n === 0 ? "Aucun" : `${n} mois`}</SelectItem>
                   ))}
                 </SelectContent>
@@ -292,28 +359,25 @@ export function CreateSaleDialog() {
                 </div>
                 <div className="space-y-2">
                   <Label>Mois de début</Label>
-                  <Input 
+                  <Input
                     type="month"
                     onChange={(e) => {
-                      const [year, month] = e.target.value.split('-');
+                      const [year, month] = e.target.value.split("-");
                       const monthNames = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre"];
                       const monthKey = `${monthNames[parseInt(month) - 1]}_${year}`;
                       form.setValue("startMonth", monthKey);
                     }}
-                    defaultValue={`${PAYMENT_MONTHS[0].split('_')[1]}-${String(1 + ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre"].indexOf(PAYMENT_MONTHS[0].split('_')[0].toLowerCase())).padStart(2, '0')}`}
+                    defaultValue={`${PAYMENT_MONTHS[0].split("_")[1]}-${String(1 + ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre"].indexOf(PAYMENT_MONTHS[0].split("_")[0].toLowerCase())).padStart(2, "0")}`}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Jour de début</Label>
-                  <Select 
-                    onValueChange={(val) => form.setValue("paymentDay", parseInt(val))} 
-                    defaultValue={form.getValues("paymentDay")?.toString() || "1"}
-                  >
+                  <Select onValueChange={(val) => form.setValue("paymentDay", parseInt(val))} defaultValue={form.getValues("paymentDay")?.toString() || "1"}>
                     <SelectTrigger>
                       <SelectValue placeholder="Jour..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                         <SelectItem key={d} value={d.toString()}>{d}</SelectItem>
                       ))}
                     </SelectContent>
@@ -325,7 +389,7 @@ export function CreateSaleDialog() {
 
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button type="submit" disabled={createSale.isPending}>
+            <Button type="submit" disabled={createSale.isPending} data-testid="btn-submit-sale">
               {createSale.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enregistrement...</> : "Enregistrer"}
             </Button>
           </div>

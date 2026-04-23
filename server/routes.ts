@@ -966,13 +966,13 @@ export async function registerRoutes(
       res.json(r);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.patch("/api/receptions/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/receptions/:id", isManager, async (req, res) => {
     try {
       const r = await storage.updateReception(Number(req.params.id), req.body);
       res.json(r);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  app.delete("/api/receptions/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/receptions/:id", isManager, async (req, res) => {
     try {
       await storage.deleteReception(Number(req.params.id));
       res.json({ ok: true });

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Truck, Plus, Trash2, ChevronRight, X, Eye, Pencil } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 type ProductFamily = { id: number; name: string };
 type Product = { id: number; reference: string; designation: string; familyId: number | null; defaultPrice: number; tvaPct: number; availableQty: number };
@@ -39,6 +40,8 @@ export default function ReceptionPage() {
   const [view, setView] = useState<"list" | "new" | "detail" | "edit">("list");
   const [detailId, setDetailId] = useState<number | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isManager = user?.role === "manager";
 
   const { data: families = [] } = useQuery<ProductFamily[]>({ queryKey: ["/api/product-families"] });
   const { data: products = [] } = useQuery<Product[]>({ queryKey: ["/api/stock/products"] });
@@ -91,6 +94,7 @@ export default function ReceptionPage() {
             onEdit={id => { setDetailId(id); setView("edit"); }}
             onDelete={id => deleteMut.mutate(id)}
             isDeleting={deleteMut.isPending}
+            isManager={isManager}
           />
         )}
         {view === "new" && (
@@ -113,6 +117,7 @@ export default function ReceptionPage() {
             onEdit={() => setView("edit")}
             onDelete={() => deleteMut.mutate(detailId)}
             isDeleting={deleteMut.isPending}
+            isManager={isManager}
           />
         )}
         {view === "edit" && detailId && (
@@ -131,9 +136,9 @@ export default function ReceptionPage() {
 }
 
 // ─── List ─────────────────────────────────────────────────────────────────────
-function ReceptionList({ receptions, isLoading, onView, onEdit, onDelete, isDeleting }: {
+function ReceptionList({ receptions, isLoading, onView, onEdit, onDelete, isDeleting, isManager }: {
   receptions: Reception[]; isLoading: boolean; onView: (id: number) => void;
-  onEdit: (id: number) => void; onDelete: (id: number) => void; isDeleting: boolean;
+  onEdit: (id: number) => void; onDelete: (id: number) => void; isDeleting: boolean; isManager: boolean;
 }) {
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   return (
@@ -154,8 +159,8 @@ function ReceptionList({ receptions, isLoading, onView, onEdit, onDelete, isDele
               <td className="px-4 py-3">
                 <div className="flex gap-1 justify-end">
                   <Button variant="ghost" size="sm" className="gap-1" onClick={() => onView(r.id)} data-testid={`button-view-reception-${r.id}`}><Eye className="w-3.5 h-3.5" />Voir</Button>
-                  <Button variant="ghost" size="sm" className="gap-1" onClick={() => onEdit(r.id)} data-testid={`button-edit-reception-${r.id}`}><Pencil className="w-3.5 h-3.5" />Modifier</Button>
-                  <Button variant="ghost" size="sm" className="gap-1 text-destructive hover:text-destructive" onClick={() => setConfirmDelete(r.id)} data-testid={`button-delete-reception-${r.id}`}><Trash2 className="w-3.5 h-3.5" />Supprimer</Button>
+                  {isManager && <Button variant="ghost" size="sm" className="gap-1" onClick={() => onEdit(r.id)} data-testid={`button-edit-reception-${r.id}`}><Pencil className="w-3.5 h-3.5" />Modifier</Button>}
+                  {isManager && <Button variant="ghost" size="sm" className="gap-1 text-destructive hover:text-destructive" onClick={() => setConfirmDelete(r.id)} data-testid={`button-delete-reception-${r.id}`}><Trash2 className="w-3.5 h-3.5" />Supprimer</Button>}
                 </div>
               </td>
             </tr>
@@ -410,7 +415,7 @@ function ReceptionEditForm({ id, toast, onSaved }: { id: number; toast: ReturnTy
 }
 
 // ─── Detail ───────────────────────────────────────────────────────────────────
-function ReceptionDetail({ id, onEdit, onDelete, isDeleting }: { id: number; onEdit: () => void; onDelete: () => void; isDeleting: boolean }) {
+function ReceptionDetail({ id, onEdit, onDelete, isDeleting, isManager }: { id: number; onEdit: () => void; onDelete: () => void; isDeleting: boolean; isManager: boolean }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { data: r, isLoading } = useQuery<Reception>({ queryKey: ["/api/receptions", id] });
   if (isLoading) return <p className="text-gray-400">Chargement...</p>;
@@ -426,10 +431,12 @@ function ReceptionDetail({ id, onEdit, onDelete, isDeleting }: { id: number; onE
       <Card className="rounded-2xl border shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="font-black text-lg text-orange-800">BR N° {r.bonNumber}</CardTitle>
-          <div className="flex gap-2">
-            <Button variant="outline" className="gap-1" onClick={onEdit} data-testid="button-edit-reception-detail"><Pencil className="w-4 h-4" />Modifier</Button>
-            <Button variant="outline" className="gap-1 text-destructive border-destructive/30 hover:bg-destructive/5" onClick={() => setConfirmDelete(true)} disabled={isDeleting} data-testid="button-delete-reception-detail"><Trash2 className="w-4 h-4" />Supprimer</Button>
-          </div>
+          {isManager && (
+            <div className="flex gap-2">
+              <Button variant="outline" className="gap-1" onClick={onEdit} data-testid="button-edit-reception-detail"><Pencil className="w-4 h-4" />Modifier</Button>
+              <Button variant="outline" className="gap-1 text-destructive border-destructive/30 hover:bg-destructive/5" onClick={() => setConfirmDelete(true)} disabled={isDeleting} data-testid="button-delete-reception-detail"><Trash2 className="w-4 h-4" />Supprimer</Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 text-sm">
           <div><span className="text-gray-500">Date:</span> <strong>{r.date}</strong></div>

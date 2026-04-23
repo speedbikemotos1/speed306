@@ -1,0 +1,250 @@
+Extend my existing sales management application used for motorcycle sales.
+
+The system already contains historical Bon de Livraison (BL) data stored in a table structured like this:
+
+Example existing data:
+
+Bon n°	Date	Commercial	Client	Id_Client	Facture n°	Ref	Designation	Qte	Prix	TVA	Remise	Prix TTC	Montant HT	Montant TVA	Montant TTC	S/N
+25/000001	16/06/2025	HADJ SALEM Karim	ZIED BOUAFIA	411100004	25/000001	007	PISTA VCX NOIRE NOIRE	1	3445	19%	0	4099,55	3445,000	654,550	4099,550	LCS4BGN60S1E00784
+25/000002	17/06/2025	HADJ SALEM Karim	MED MAROUEN EL HAJRI	411100005	25/000002	151	GHOST V7 124CC BLEUE JAUNE	1	4874	19%	0	5800,06	4874,000	926,060	5800,060	LEHTCJ015RRM00155
+
+Each sold motorcycle has one serial number (S/N).
+
+Your task is to build the complete backend logic and UI to manage stock and sales using serial numbers.
+
+1. Product Family Table
+
+Create table:
+
+product_families
+
+Fields:
+
+id (primary key)
+name
+created_at
+
+Example families:
+
+Scooter
+Moto
+Accessoires
+2. Products Table
+
+Create table:
+
+products
+
+Fields:
+
+id
+reference
+designation
+family_id
+default_price
+tva_percent
+created_at
+
+Example product:
+
+reference	designation	price	TVA
+071	BLASTER VERT 125cc	5440.3652	19
+3. Serial Number Stock Table
+
+Each physical motorcycle must have one serial number.
+
+Create table:
+
+product_serials
+
+Fields:
+
+id
+product_id
+serial_number
+purchase_price
+status (available / sold)
+reception_id
+created_at
+
+Stock quantity must always equal:
+
+count(product_serials where status = available)
+4. Bon de Réception (Stock Entry)
+
+Implement module Bon de réception for receiving motorcycles from suppliers.
+
+Example existing workflow:
+
+Fiche du bon de réception
+
+Bon de réception N°
+26/000004
+
+Date du bon
+11/03/2026
+
+Fournisseur
+K TRADING GLOBAL
+
+Products example:
+
+Reference	Designation	Qte	Prix	TVA	Remise
+071	BLASTER VERT 125cc	1	5440.3652	19%	5
+072	BLASTER GRIS 125cc	1	5440.3652	19%	5
+073	BLASTER NOIR 125cc	1	5440.3652	19%	5
+
+Totals example:
+
+Montant HT = 15505,041
+Montant TVA = 2945,958
+Montant TTC = 18450,999
+
+Reception Logic
+
+When receiving products:
+
+User enters products and quantities.
+For each unit received, the system must request a serial number.
+Serial numbers are stored in product_serials.
+Status is set to available.
+5. Bon de Livraison (Sales)
+
+Create a Bon de Livraison creation form.
+
+Fields:
+
+Bon de livraison N°
+Auto-generated format:
+
+YY/000000
+
+Example:
+
+26/000044
+
+Other fields:
+
+Date du bon
+Commercial
+Client
+Id_Client
+6. Product Search in BL
+
+User must be able to search products by:
+
+reference
+designation
+product family
+
+Search result table must show:
+
+| Reference | Designation | Qté disponible | Prix vente | TVA |
+
+Qté disponible must be calculated as:
+
+count(product_serials where status = available and product_id = X)
+7. Adding Products to BL
+
+When the user selects a product:
+
+System must open a serial number selection modal.
+
+Show available serial numbers for that product.
+
+Example:
+
+Serial Number
+LYFXCJL08R7000785
+LYFXCJL06R7000784
+LYFXCJL00R7000750
+
+User selects one serial number.
+
+The selected serial number becomes one BL line.
+
+8. BL Lines Structure
+
+Each line must contain:
+
+| Ref | Designation | Serial Number | Prix | TVA | Remise | Prix TTC |
+
+Quantity is always 1.
+
+Calculations:
+
+Montant HT = Prix
+
+Montant TVA = Prix × TVA %
+
+Prix TTC = HT + TVA
+
+9. BL Totals
+
+Display totals exactly like current system:
+
+Montant HT
+Montant TVA
+Montant TTC
+
+Totals must update dynamically.
+
+10. Sales Validation Logic
+
+When validating a BL:
+
+Insert BL data
+Insert BL lines
+Change serial number status:
+available → sold
+
+This automatically updates stock.
+
+11. CRUD Operations
+
+Implement full CRUD.
+
+Create BL
+Edit BL (if not validated)
+Delete BL (if not validated)
+View BL history
+
+12. Business Rules
+
+Enforce the following:
+
+One serial number can only be sold once.
+Cannot sell a serial number with status "sold".
+Cannot validate BL without serial numbers.
+Quantity always equals 1 per serial number.
+Stock is determined only by available serial numbers.
+13. Interface Requirements
+
+The interface must include:
+
+BL creation form
+Product search system
+Serial number selection modal
+Dynamic totals
+BL list page
+Reception entry form
+
+The product search must not reload the page.
+
+14. Final Goal
+
+Allow the user to perform the full workflow:
+
+Supplier → Bon de Réception → Serial Numbers → Stock → Bon de Livraison → Sale
+
+Example:
+
+Receive 3 motorcycles
+Add 3 serial numbers
+Stock becomes 3
+
+Sell 1 motorcycle
+Select its serial number
+Stock becomes 2
+
+✅ Use the same backend framework, database, and UI structure already used in my Replit project.

@@ -1,0 +1,177 @@
+ALTER TABLE ONLY public.clients
+    ADD CONSTRAINT clients_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: deferred_sales deferred_sales_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.deferred_sales
+    ADD CONSTRAINT deferred_sales_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: delivery_note_lines delivery_note_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.delivery_note_lines
+    ADD CONSTRAINT delivery_note_lines_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: divers_purchases divers_purchases_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.divers_purchases
+    ADD CONSTRAINT divers_purchases_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: facture_lines facture_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.facture_lines
+    ADD CONSTRAINT facture_lines_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: helmet_purchases helmet_purchases_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.helmet_purchases
+    ADD CONSTRAINT helmet_purchases_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: helmet_sales helmet_sales_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.helmet_sales
+    ADD CONSTRAINT helmet_sales_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: notifications notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: oil_purchases oil_purchases_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.oil_purchases
+    ADD CONSTRAINT oil_purchases_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: oil_sales oil_sales_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.oil_sales
+    ADD CONSTRAINT oil_sales_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: orders orders_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.orders
+    ADD CONSTRAINT orders_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: product_prices product_prices_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_prices
+    ADD CONSTRAINT product_prices_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: reservations reservations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reservations
+    ADD CONSTRAINT reservations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: saddle_purchases saddle_purchases_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.saddle_purchases
+    ADD CONSTRAINT saddle_purchases_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: saddle_sales saddle_sales_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.saddle_sales
+    ADD CONSTRAINT saddle_sales_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: sales sales_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.sales
+    ADD CONSTRAINT sales_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user_notifications user_notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_notifications
+    ADD CONSTRAINT user_notifications_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: users users_username_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_unique UNIQUE (username);
+
+
+--
+-- Name: notifications notifications_user_id_users_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_user_id_users_id_fk FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: user_notifications user_notifications_notification_id_notifications_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_notifications
+    ADD CONSTRAINT user_notifications_notification_id_notifications_id_fk FOREIGN KEY (notification_id) REFERENCES public.notifications(id);
+
+
+--
+-- Name: user_notifications user_notifications_user_id_users_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_notifications
+    ADD CONSTRAINT user_notifications_user_id_users_id_fk FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- PostgreSQL database dump complete
+--
+
+

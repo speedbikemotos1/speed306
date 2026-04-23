@@ -1,0 +1,9 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+.env
+.local/state/replit/log-query.db
+.local/state/

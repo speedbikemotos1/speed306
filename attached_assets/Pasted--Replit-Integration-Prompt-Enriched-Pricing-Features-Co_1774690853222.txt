@@ -1,0 +1,123 @@
+🔧 Replit Integration Prompt — Enriched Pricing Features
+Colle ce prompt dans Replit pour qu'il ajoute ces fonctionnalités à ton app tarif existante. Ne recrée pas l'app — enrichis-la.
+
+🎯 OBJECTIF
+Mon app de tarification affiche déjà une liste de produits avec prix. J'ai besoin d'ajouter les fonctionnalités suivantes par-dessus l'existant, sans casser ce qui marche déjà.
+
+🧠 FONCTIONNALITÉ 1 — Enrichissement automatique des lignes
+Pour chaque produit, analyser le champ "nom du produit" (Désignation longue) et en extraire automatiquement des données structurées :
+
+Normalisation du nom
+Mettre en majuscules
+Remplacer - et _ par des espaces
+Supprimer les espaces multiples
+Supprimer les mots consécutifs dupliqués
+Correction automatique de fautes
+Appliquer un dictionnaire de corrections courantes :
+
+COLORE → COLOREE, GOST → GHOST, JL M → JLM,
+ORIGNE/ORGINE → ORIGINE, BOOSTE/BOSTER → BOOSTER,
+POWR → POWER, SPRIN → SPRING
+Extraction de champs structurés
+Champ	Logique d'extraction
+Famille moto	Détecter : GHOST, JLM, MBK, CIAO, POWER, BOOSTER, SPRING
+Modèle	Famille + version/cylindrée (ex: "JLM 110", "GHOST V7")
+Cylindrée	Extraire les nombres 50/80/100/110/125/150/200/250, formater "110cc"
+Variante	Détecter : V1, V2, V7, ORIGINE, SPORT, RACING, PREMIUM, EVO
+Couleur	Détecter : BLEU, NOIR, ROUGE, GRIS, BLANC, VERT, JAUNE, ORANGE, etc.
+Catégorie	Mapper le premier mot du nom vers une catégorie française (voir ci-dessous)
+Mapping des catégories (en français)
+AILES/AILE/CARENAGE/COQUE/GARDE/HABILLAGE → Carrosserie
+BAVETTE/RETROVISEUR/BEQUILLE → Extérieur
+AFFICHEUR/COMPTEUR/COMMUTATEUR/CDI/BOBINE/REGULATEUR → Électronique
+FEU/PHARE/CLIGNOTANT/AMPOULE → Éclairage
+MOTEUR/CYLINDRE/PISTON/CULASSE/CARBURATEUR/VILEBREQUIN → Moteur
+FREIN/PLAQUETTE/DISQUE/MAITRE → Freinage
+PNEU/JANTE/ROUE/CHAMBRE → Roues & Pneus
+CABLE/POIGNEE/LEVIER → Câbles & Commandes
+POT/ECHAPPEMENT/SILENCIEUX → Échappement
+CHAINE/COURONNE/PIGNON/VARIATEUR/COURROIE/GALET/EMBRAYAGE → Transmission
+JOINT → Joints & Étanchéité
+ROULEMENT → Roulements
+SELLE → Confort
+GUIDON → Direction
+FOURCHE/AMORTISSEUR → Suspension
+RESERVOIR/ROBINET → Carburant
+FILTRE → Filtration
+BOUGIE → Allumage
+DEMARREUR/BATTERIE → Électricité
+STICKER/AUTOCOLLANT → Décoration
+KIT → Kits
+Défaut → Autre
+Texte de recherche
+Concaténer : nom normalisé + famille + modèle + catégorie + couleur + variante → tout en majuscules. Utilisé pour la recherche fulltext.
+
+💰 FONCTIONNALITÉ 2 — Calcul de prix de vente dynamique
+Marge sélectionnable : +20% ou +25%
+Formule : prix_vente = prix_base × (1 + marge / 100)
+Afficher 3 décimales, format français (virgule)
+Quand l'utilisateur change la marge, tous les prix se mettent à jour instantanément
+Mettre le prix de vente en couleur verte pour le distinguer visuellement
+🎛️ FONCTIONNALITÉ 3 — Filtres sidebar
+Ajouter une sidebar à gauche (masquable) avec des filtres par checkbox :
+
+Famille moto (GHOST, JLM, MBK, CIAO, POWER, BOOSTER, SPRING)
+Modèle (valeurs auto-détectées depuis les données)
+Cylindrée (50cc, 110cc, 125cc, etc.)
+Catégorie (Carrosserie, Moteur, Freinage, etc.)
+Couleur (Noir, Bleu, Rouge, etc.)
+Chaque section liste uniquement les valeurs présentes dans le dataset. Bouton "Effacer" pour réinitialiser tous les filtres. Persister les filtres dans localStorage.
+
+🔖 FONCTIONNALITÉ 4 — Onglets rapides (Quick Tabs)
+Barre d'onglets sous le header :
+Tous | Ghost | JLM | MBK | Ciao | Power | Booster | Spring | ★ Favoris
+
+Cliquer sur un onglet filtre par famille moto
+"Tous" affiche tout
+"★ Favoris" affiche seulement les produits marqués favoris
+Style : pilules arrondies, couleur primaire quand actif
+⭐ FONCTIONNALITÉ 5 — Favoris
+Icône étoile (★) sur chaque ligne du tableau
+Clic = toggle favori (étoile jaune = actif, grise = inactif)
+Persister les favoris dans localStorage
+Onglet "★ Favoris" pour voir seulement les favoris
+📊 FONCTIONNALITÉ 6 — Tableau enrichi
+Colonnes à afficher
+| ★ | Désignation | Famille | Modèle | Cylindrée | Catégorie | Prix de base | Prix vente (+N%) |
+
+Fonctionnalités du tableau
+Recherche : barre de recherche qui filtre sur le texte de recherche combiné
+Tri : clic sur les entêtes pour trier (Désignation, Famille, Modèle, Prix). Toggle asc/desc avec icônes chevron
+Pagination : 25 lignes par page, boutons précédent/suivant, affichage "Page X / Y"
+Groupement : dropdown pour grouper par Famille / Catégorie / Modèle (ajoute des lignes d'en-tête de groupe)
+Toggle nom : switch pour basculer entre nom original et nom nettoyé
+Badges colorés
+Famille : badge coloré distinct par famille (ex: Ghost=violet, JLM=bleu, MBK=ambre, etc.)
+Catégorie : badge coloré distinct par catégorie
+Cylindrée : badge outline monospace
+Couleur : badge outline
+Variante : badge secondaire
+📂 FONCTIONNALITÉ 7 — Import / Export
+Import
+Bouton "Importer" qui accepte .csv, .xlsx, .xls
+Mapper les colonnes : N→id, Désignation longue→nom, Prix de vente TTC→prix de base
+Fallback : ID, Product Name, Base Price
+Export
+Bouton "Exporter" → télécharge un CSV avec colonnes : ID, Désignation, Famille, Modèle, Cylindrée, Catégorie, Couleur, Prix de base, Marge, Prix de vente
+Nom du fichier : prix_vente_enrichi_{marge}pct.csv
+⚡ FONCTIONNALITÉ 8 — Performance
+L'app doit gérer 1300+ lignes sans lag
+Utiliser useMemo pour : enrichissement, filtrage, tri, pagination, valeurs uniques des filtres, groupement
+Utiliser useCallback pour : toggle favori, gestion fichier
+La recherche doit reset la page à 0
+🎨 FONCTIONNALITÉ 9 — UX
+Layout responsive : sidebar masquée sur mobile, visible sur desktop
+Header sticky avec logo, titre, et contrôles
+Prix de vente en vert pour le distinguer du prix de base
+Transitions douces sur les interactions (hover, toggle)
+Compteur de produits visible ("X produits")
+⚠️ RÈGLES D'INTÉGRATION
+Ne recrée pas l'app — ajoute ces fonctionnalités à l'interface existante
+Garde le style existant — adapte les composants au design system déjà en place
+Client-side uniquement — pas de backend, tout en JavaScript/TypeScript côté client
+Librairies utiles : xlsx (SheetJS) pour Excel, papaparse pour CSV, lucide-react pour les icônes

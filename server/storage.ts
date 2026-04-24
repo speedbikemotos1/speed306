@@ -950,6 +950,8 @@ export class DatabaseStorage implements IStorage {
     }).from(productSerials).where(eq(productSerials.status, "available")).groupBy(productSerials.productId);
     const countMap = new Map(serialCounts.map(r => [r.productId, r.cnt]));
     let result = rows.map(p => ({ ...p, familyName: p.familyId ? (familyMap.get(p.familyId) ?? null) : null, availableQty: countMap.get(p.id) ?? 0 }));
+    // Casques have their own dedicated module — exclude from stock motos
+    result = result.filter(p => p.familyName !== 'Casques');
     if (familyId) result = result.filter(p => p.familyId === familyId);
     if (search) { const q = search.toLowerCase(); result = result.filter(p => p.designation.toLowerCase().includes(q) || p.reference.toLowerCase().includes(q)); }
     result.sort((a, b) => b.availableQty - a.availableQty || a.reference.localeCompare(b.reference));

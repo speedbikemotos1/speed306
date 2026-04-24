@@ -262,7 +262,7 @@ function ProduitsTab({ products, families, search, setSearch, filterFamilyId, se
             <SelectTrigger className="w-40" data-testid="select-filter-family"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes familles</SelectItem>
-              {families.map(f => <SelectItem key={f.id} value={f.id.toString()}>{f.name}</SelectItem>)}
+              {families.filter(f => f.name !== 'Casques').map(f => <SelectItem key={f.id} value={f.id.toString()}>{f.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
